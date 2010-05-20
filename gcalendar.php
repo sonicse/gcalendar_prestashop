@@ -38,17 +38,19 @@ class GCalendar extends Module
 		/* Get config vars */		 
 		$this->_password = Configuration::get('GCALENDAR_PASSWORD');
 		$this->_user = Configuration::get('GCALENDAR_USER');
-		$this->_sms_new_order =  Configuration::get('GCALENDAR_SMS_NEW_ORDER');
+		$this->_sms_new_order = Configuration::get('GCALENDAR_SMS_NEW_ORDER');
 	}
 
     function install()
     {
-       if(!parent::install() OR !$this->registerHook('newOrder'))
+       if (!Configuration::updateValue('GCALENDAR_SMS_NEW_ORDER', 1)
+			OR !parent::install()
+			OR !$this->registerHook('newOrder'))
+		{
 			return false;
+		}
 
-		Configuration::updateValue('GCALENDAR_SMS_NEW_ORDER', 1);
-		
-        return true;
+		return true;
     }
 	
 	public function uninstall()
@@ -56,6 +58,7 @@ class GCalendar extends Module
 		Configuration::deleteByName('GCALENDAR_PASSWORD');
 		Configuration::deleteByName('GCALENDAR_USER');
 		Configuration::deleteByName('GCALENDAR_SMS_NEW_ORDER');
+		Configuration::deleteByName('GCALENDAR_OFFSET');
 		
 		return parent::uninstall();
 	}
@@ -92,9 +95,17 @@ class GCalendar extends Module
 
 		$desc = $this->_getTplBody(self::$_tpl_sms_files['name']['new_orders'].self::$_tpl_sms_files['ext']['new_orders'], $templateVars);
 		
+		$offset = intval(Configuration::get('GCALENDAR_OFFSET'));
+		if (!Validate::isInt($offset) OR $offset < 0)
+			$offset = 0;
+		
 		$event = new GCalendarEvent($this->_user, $this->_password);
-		$event->addEvent('Новый заказ',$desc, $this->_data['shopname'], 
-						date('c'), date('c'), $this->_sms_new_order );
+		$event->addEvent('Новый заказ'
+						,$desc
+						,$this->_data['shopname']
+						,date('c', time() + $offset)
+						,date('c', time() + $offset)
+						,$this->_sms_new_order );
 	}
 	
 	public function getContent()
@@ -108,9 +119,15 @@ class GCalendar extends Module
 			{
 				if (!empty($this->_user) AND !empty($this->_password) )
 				{
+					$offset = intval(Configuration::get('GCALENDAR_OFFSET'));
+					if (!Validate::isInt($offset) OR $offset < 0)
+						$offset = 0;
+			
 					$event = new GCalendarEvent($this->_user, $this->_password);
-					$event->addEvent('Test order', 'Description', $this->_data['shopname'], 
-										date('c'), date('c'), $this->_sms_new_order );
+					$event->addEvent('Test order', 'Description', $this->_data['shopname']
+										,date('c', time() + $offset)
+										,date('c', time() + $offset)
+										,$this->_sms_new_order );
 					
 					$this->_html .= $this->displayConfirmation($this->l('Check your google calendar'));
 					//$this->_html .= $this->displayError($this->l('Error while sending message'));
@@ -162,6 +179,7 @@ class GCalendar extends Module
 				$_POST['user'] = $this->_user;
 				$_POST['password'] = $this->_password;
 				$_POST['sms_new_order'] = $this->_sms_new_order;
+				$_POST['offset'] = Configuration::get('GCALENDAR_OFFSET');
 			}
 		}
 		
@@ -171,6 +189,10 @@ class GCalendar extends Module
 			<div class="margin-form"><input type="text" name="user" value="'.(isset($_POST['user']) ? $_POST['user'] : '').'" /></div>
 			<label>'.$this->l('Password:').'</label>
 			<div class="margin-form"><input type="text" name="password" value="'.(isset($_POST['password']) ? $_POST['password'] : '').'" /></div>
+			
+			<label>'.$this->l('Event delay:').'</label>
+			<div class="margin-form"><input type="text" name="offset" value="'.(isset($_POST['offset']) ? $_POST['offset'] : '').'" />
+			<br />'.$this->l('in seconds (default = 0)').'</div>
 			
 			<label>'.$this->l('Send sms on new order:').'</label>
 			<div class="margin-form"><div style="color:#000000; font-size:12px; margin-bottom:6px"><input type="checkbox" value="1" name="sms_new_order" '.( (isset($_POST['sms_new_order']) AND $_POST['sms_new_order'] == '1') ? 'checked' : '').' />&nbsp;'.$this->l('Yes').'</div>'.$this->l('Send SMS if a new order is made').'</div>
@@ -184,6 +206,10 @@ class GCalendar extends Module
 		Configuration::updateValue('GCALENDAR_USER', $_POST['user']);
 		Configuration::updateValue('GCALENDAR_PASSWORD', $_POST['password']);
 		Configuration::updateValue('GCALENDAR_SMS_NEW_ORDER', isset($_POST['sms_new_order']) ? 1 : 0);
+		
+		$offset = $_POST['offset'];
+		if (isset($offset) AND Validate::isInt($offset) AND $offset >= 0)
+			Configuration::updateValue('GCALENDAR_OFFSET', $offset);
 
 		$this->_html .= $this->displayConfirmation($this->l('Settings updated'));
 	}
