@@ -38,18 +38,15 @@ class GCalendarEvent {
 		$when->startTime = $startDate;
 		$when->endTime = $endDate;
 		
-		$newEvent->when = array($when);
-		$createdEvent = $gdataCal->insertEvent($newEvent);
-		
 		if( intval($sms_reminder) )
 		{
 			$reminder = $gdataCal->newReminder();
 			$reminder->method = "sms";
 			$reminder->minutes = "0"; 
-			$when = $createdEvent->when[0];
 			$when->reminders = array($reminder);
 		}
-		$eventNew = $createdEvent->save();
+		$newEvent->when = array($when);
+		$createdEvent = $gdataCal->insertEvent($newEvent);
 		
 		return $createdEvent->id->text;
 	}
