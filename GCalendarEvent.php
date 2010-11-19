@@ -17,6 +17,8 @@ class GCalendarEvent {
 		$endDate,
 		$sms_reminder)
 	{
+		try {
+
 		set_include_path('.' . PATH_SEPARATOR . $_SERVER['DOCUMENT_ROOT'].'/modules/gcalendar/' . PATH_SEPARATOR . get_include_path());
 
 		include_once 'Zend/Loader.php';
@@ -25,7 +27,7 @@ class GCalendarEvent {
 		Zend_Loader::loadClass('Zend_Gdata_ClientLogin');
 		Zend_Loader::loadClass('Zend_Gdata_HttpClient');
 		Zend_Loader::loadClass('Zend_Gdata_Calendar');
-  
+
 		$client = Zend_Gdata_ClientLogin::getHttpClient($this->_user, $this->_pass, "cl");
 		
 		$gdataCal = new Zend_Gdata_Calendar($client);
@@ -49,6 +51,10 @@ class GCalendarEvent {
 		$createdEvent = $gdataCal->insertEvent($newEvent);
 		
 		return $createdEvent->id->text;
+
+		} catch(Exception $ex) {
+ 		   // Report the exception to the user
+		}
 	}
 }
 
